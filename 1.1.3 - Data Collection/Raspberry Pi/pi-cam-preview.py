@@ -16,7 +16,8 @@ License: Apache-2.0 (apache.org/licenses/LICENSE-2.0)
 """
 
 import cv2
-from picamera2 import Picamera2
+#from picamera2 import Picamera2
+import sys
 
 # Settings
 res_width = 320                         # Resolution of camera (width)
@@ -27,60 +28,74 @@ cam_format = "RGB888"                   # Color format
 # Initial framerate value
 fps = 0
 
+s = 0
+if len(sys.argv) > 1:
+    s = sys.argv[1]
+
+source = cv2.VideoCapture(s)
+
+source.set(cv2.CAP_PROP_FRAME_WIDTH, res_width)
+source.set(cv2.CAP_PROP_FRAME_HEIGHT, res_height)
+
+
 # Interface with camera
-with Picamera2() as camera:
+#with Picamera2() as camera:
 
     # Configure camera settings
-    config = camera.create_video_configuration(
-        main={"size": (res_width, res_height), "format": cam_format})
-    camera.configure(config)
+#    config = camera.create_video_configuration(
+#        main={"size": (res_width, res_height), "format": cam_format})
+#    camera.configure(config)
 
     # Start camera
-    camera.start()
+#    camera.start()
 
     # Continuously capture frames
-    while True:
+while True:
                                             
-        # Get timestamp for calculating actual framerate
-        timestamp = cv2.getTickCount()
-        
-        # Get array that represents the image
-        img = camera.capture_array()
-        
-        # Rotate image
-        if rotation == 0:
-            pass
-        elif rotation == 90:
-            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-        elif rotation == 180:
-            img = cv2.rotate(img, cv2.ROTATE_180)
-        elif rotation == 270:
-            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        else:
-            print("ERROR: rotation not supported. Must be 0, 90, 180, or 270.")
-            break
+    # Get timestamp for calculating actual framerate
+    timestamp = cv2.getTickCount()
+    
+    # Get array that represents the image
+#     img = camera.capture_array()
+    
+    has_frame, img = source.read()
+    if not has_frame:
+        break
 
-        # Fix colors (as OpenCV works in BGR format)
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # Rotate image
+    if rotation == 0:
+        pass
+    elif rotation == 90:
+        img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+    elif rotation == 180:
+        img = cv2.rotate(img, cv2.ROTATE_180)
+    elif rotation == 270:
+        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    else:
+        print("ERROR: rotation not supported. Must be 0, 90, 180, or 270.")
+        break
+
+    # Fix colors (as OpenCV works in BGR format)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    
+    # Draw framerate on frame
+    cv2.putText(img, 
+                "FPS: " + str(round(fps, 2)), 
+                (0, 12),
+                cv2.FONT_HERSHEY_PLAIN,
+                1,
+                (255, 255, 255))
         
-        # Draw framerate on frame
-        cv2.putText(img, 
-                    "FPS: " + str(round(fps, 2)), 
-                    (0, 12),
-                    cv2.FONT_HERSHEY_PLAIN,
-                    1,
-                    (255, 255, 255))
+    # Show the frame
+    cv2.imshow("Frame", img)
         
-        # Show the frame
-        cv2.imshow("Frame", img)
+    # Calculate framrate
+    frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
+    fps = 1 / frame_time
         
-        # Calculate framrate
-        frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
-        fps = 1 / frame_time
-        
-        # Press 'q' to quit
-        if cv2.waitKey(1) == ord('q'):
-            break
-            
+    # Press 'q' to quit
+    if cv2.waitKey(1) == ord('q'):
+        break
+
 # Clean up
 cv2.destroyAllWindows()
